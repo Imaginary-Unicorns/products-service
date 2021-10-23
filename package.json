@@ -1,0 +1,27 @@
+{
+  "name": "products-service",
+  "version": "1.0.0",
+  "description": "Services products API",
+  "main": "server.js",
+  "scripts": {
+    "test": "jest",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Imaginary-Unicorns/products-service.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Imaginary-Unicorns/products-service/issues"
+  },
+  "homepage": "https://github.com/Imaginary-Unicorns/products-service#readme",
+  "dependencies": {
+    "compression": "^1.7.4",
+    "express": "^4.17.1",
+    "mongoose": "^6.0.11",
+    "pg": "^8.7.1",
+    "pg-promise": "^10.11.1"
+  }
+}
