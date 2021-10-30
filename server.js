@@ -86,20 +86,17 @@ app.use(bodyParser.json());
 
 app.get('/', (req, res) => {
   // console.log(req)
-  if(req.headers.authorization === credentials.authorization) {
-
-  }
   res.send('You are not using the API correctly')
 })
 
 app.get('/products', (req, res)=>{
-  console.log(req.url)
+
   if(req.headers.authorization === credentials.authorization && req.body === undefined) {
     // console.log(req.body);
 
     db.any('SELECT id, name, slogan, description, category, default_price FROM products WHERE id < 5 ')
     .then((results)=>{
-      console.log(results);
+
       res.send(results);
     })
     .catch((err)=>{
@@ -108,11 +105,10 @@ app.get('/products', (req, res)=>{
     })
 
   } else if(req.headers.authorization === credentials.authorization && req.body !== undefined) {
-
+    //console.log('Get product info request made on productId: ',req.body.productId)
     db.any('SELECT id, name, slogan, description, category, default_price, features FROM products WHERE id = ' + req.body.productId)
     .then((results)=>{
       // console.log(results);
-      console.log(results);
       res.send(results[0]);
     })
     .catch((err)=>{
@@ -128,6 +124,7 @@ app.get('/products', (req, res)=>{
 app.get('/products/styles', async (req, res)=>{
   let totalResults = {};
   totalResults.product_id = req.body.productId;
+ // console.log('Get styles request made on productId: ',totalResults.product_id)
   if(req.headers.authorization === credentials.authorization && req.body !== undefined) {
     let styles = [];
 
@@ -175,6 +172,23 @@ app.get('/products/styles', async (req, res)=>{
   } else {
     res.sendStatus(501);
   }
+})
+
+app.get('/products/related', (req, res)=>{
+  //console.log('Get related products request made from parent productId: ', req.body.productId)
+  db.any('SELECT related_product_id FROM RELATED WHERE current_product_id = ' + req.body.productId)
+  .then(async (results)=>{
+    let nums = []
+    for(let i = 0; i < results.length; i++) {
+      nums.push(results[i].related_product_id);
+
+    }
+    res.send(nums);
+  })
+  .catch((err)=>{
+    console.log(err);
+    res.sendStatus(501);
+  })
 })
 
 app.listen(port, () => {
