@@ -14,34 +14,34 @@ describe('Should query all tables', ()=>{
   });
   test('Should be able to query from skus table', async () => {
     let results;
-    db.any('SELECT * FROM skus WHERE id = 1')
+    await db.any('SELECT * FROM skus WHERE id = 1')
     .then((res)=>{
       results = res;
       expect(results[0].id).toBe(1);
     })
 
   });
-  test('Should be able to query from product table', () => {
+  test('Should be able to query from product table', async() => {
     let results;
-    db.any('SELECT * FROM product WHERE id = 1')
+    await db.any('SELECT * FROM product WHERE id = 1')
     .then((res)=>{
       results = res;
       expect(results[0].id).toBe(1);
     })
 
   });
-  test('Should be able to query from style table', () => {
+  test('Should be able to query from style table', async () => {
 
     let results;
-    db.any('SELECT * FROM photos WHERE style = 1')
+    await db.any('SELECT * FROM photos WHERE style = 1')
     .then((res)=>{
       results = res;
       expect(results[0].id).toBe(1);
     })
   });
-  test('Should be able to query from related table', () => {
+  test('Should be able to query from related table', async () => {
     let results;
-    db.any('SELECT * FROM photos WHERE related = 1')
+    await db.any('SELECT * FROM photos WHERE related = 1')
     .then((res)=>{
       results = res;
       expect(results[0].id).toBe(1);

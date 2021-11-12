@@ -5,7 +5,7 @@ const compression = require('compression');
 const conf = require('./postgresConfig.js');
 const bodyParser = require('body-parser');
 const pgp = require('pg-promise')();
-const db = pgp('postgres://' + conf.username + ':' + conf.password + '@localhost:5432/' + conf.database);
+const db = pgp('postgres://' + conf.username + '@http://ec2-184-73-132-46.compute-1.amazonaws.com/:5432/' + conf.database);
 const credentials = require('./credentials.js');
 
 app.use(compression());
@@ -53,36 +53,61 @@ app.use(bodyParser.json());
 //     console.log('ERROR:', error)
 //   })
 
+  // let start = 1
+  // let endBefore = 500;
 
 
+  //   for(let i = start; i < endBefore; i++) {
+  //     if (i === start) {
+  //       console.log('Processing...');
+  //     }
+  //     let final;
+  //     let query = 'UPDATE productstyles SET photos = (SELECT json_agg(row_to_json) AS allphotos FROM (SELECT row_to_json(t) FROM (SELECT thumbnail_url, url from photos p WHERE p.styleId = ' + i +')t)d) WHERE id = ' + i;
+  //     db.any(query)
+  //     .then(async (results)=>{
+  //       final = await i === (endBefore-1);
+  //       final ? console.log('finished') : null;
 
-    // for(let i = 1; i < 5000; i++) {
+  //       // console.log(JSON.stringify(results));
+  //       // let arrayOfPhotoObjects = [];
+  //       // for(let j = 0; j < results.length; j++) {
+  //       //   arrayOfPhotoObjects.push(results[j].row_to_json);
+  //       // }
+  //       // arrayOfPhotoObjects = JSON.stringify(arrayOfPhotoObjects);
 
-    //   db.any('SELECT row_to_json(t) FROM (SELECT thumbnail_url, url from photos p WHERE p.styleId = ' + i +') t ')
-    //   .then((results)=>{
-
-    //     let arrayOfPhotoObjects = [];
-    //     for(let j = 0; j < results.length; j++) {
-    //       arrayOfPhotoObjects.push(results[j].row_to_json);
-    //     }
-    //     arrayOfPhotoObjects = JSON.stringify(arrayOfPhotoObjects);
-
-    //     let query = "UPDATE productstyles SET photos = '" + arrayOfPhotoObjects + "' WHERE id = " + i;
-    //     db.any(query)
-    //     .then(() => {
-    //       console.log('Successfully updated: ', i);
-    //     })
-    //     .catch((err)=>{
-    //       console.log('ERROR ' , err);
-    //     })
+  //       // let query = "UPDATE productstyles SET photos = '" + JSON.stringify(results) + "' WHERE id = " + i;
+  //       // let final;
+  //       // db.any(query)
+  //       // .then(async () => {
+  //       //   final = await i === 10499;
+  //       //   final ? console.log('finished') : null;
+  //       // })
+  //       // .catch((err)=>{
+  //       //   console.log('ERROR ' , err);
+  //       // })
 
 
-    //   })
-    //   .catch((err)=>{
-    //     console.log('Error ' , err);
-    //   })
+  //     })
+  //     .catch((err)=>{
+  //       console.log('Error ' , err);
+  //     })
 
-    // };
+  //   };
+
+let testConnection = () => {
+  console.log('testing database connection SELECT * from productstyles WHERE id = 1:');
+  db.any('SELECT * FROM productsstyles WHERE id = 1 ')
+    .then((results)=>{
+      console.log('results: ')
+      console.log(results);
+    })
+    .catch((err)=>{
+      console.log('Error occured: ');
+      console.log(err);
+    })
+
+}
+testConnection();
 
 app.get('/', (req, res) => {
   // console.log(req)
@@ -92,9 +117,9 @@ app.get('/', (req, res) => {
 app.get('/products', (req, res)=>{
 
   if(req.headers.authorization === credentials.authorization && req.body === undefined) {
-    // console.log(req.body);
+    //console.log(req.body);
 
-    db.any('SELECT id, name, slogan, description, category, default_price FROM products WHERE id < 5 ')
+    db.any('SELECT id, name, slogan, description, category, default_price FROM products WHERE id < 6 ')
     .then((results)=>{
 
       res.send(results);
@@ -106,6 +131,7 @@ app.get('/products', (req, res)=>{
 
   } else if(req.headers.authorization === credentials.authorization && req.body !== undefined) {
     //console.log('Get product info request made on productId: ',req.body.productId)
+    console.log('get product info on: ', req.body.productId)
     db.any('SELECT id, name, slogan, description, category, default_price, features FROM products WHERE id = ' + req.body.productId)
     .then((results)=>{
       // console.log(results);
@@ -121,53 +147,41 @@ app.get('/products', (req, res)=>{
   }
 
 })
-app.get('/products/styles', async (req, res)=>{
+
+app.get('/products/styles', (req, res)=>{
   let totalResults = {};
-  totalResults.product_id = req.body.productId;
- // console.log('Get styles request made on productId: ',totalResults.product_id)
+  totalResults.product_id = Number(req.body.productId);
+  console.log('Get styles request made on productId: ',totalResults.product_id)
   if(req.headers.authorization === credentials.authorization && req.body !== undefined) {
     let styles = [];
 
-    styles = await db.any('Select id, productId, name, sale_price, original_price, default_style FROM productstyles WHERE productId = ' + req.body.productId)
+     db.any('Select id, name, sale_price, original_price, default_style, photos, skus FROM productstyles WHERE productId = ' + req.body.productId)
     .then((results)=>{
-      return results;
+
+      styles = results;
+      //console.log(results);
+      for (let i = 0; i < styles.length; i++) {
+        let skuDetails = {};
+        let defaultVal = styles[i].default_style;
+        styles[i]['default?'] = defaultVal;
+        // console.log('hello');
+        // console.log('length of current sku', styles[i].skus.length);
+        for(let m = 0; m < styles[i].skus.length; m++) {
+          skuDetails[styles[i].skus[m].id] = {
+            quantity: styles[i].skus[m].quantity,
+            size: styles[i].skus[m].size
+          };
+        }
+        styles[i].skus = skuDetails;
+      }
+      totalResults.results = styles;
+
+      res.send(JSON.stringify(totalResults));
       }
     ).catch((err)=>{
       res.sendStatus(501);
     })
-    // console.log(styles)
-    for (let i = 0; i < styles.length; i++) {
-      let defaultVal = styles[i].default_style;
-      styles[i]['default?'] = defaultVal;
 
-      let entry = {};
-      entry = await db.any('Select thumbnail_url, url FROM photos WHERE styleId = ' + styles[i].id)
-      .then((results)=>{
-        return results;
-        }
-      ).catch((err)=>{
-        res.sendStatus(501);
-      })
-      styles[i].photos = entry;
-      styles[i].skus = {};
-
-      let skusForSingleStyleId = [];
-      skusForSingleStyleId = await db.any('Select id, size, quantity FROM skus WHERE styleId =' + styles[i].id)
-      .then((skus)=>{
-        return skus;
-      }).catch((err)=>{
-        res.sendStatus(501);
-      })
-      for(let m = 0; m < skusForSingleStyleId.length; m++) {
-        styles[i].skus[skusForSingleStyleId[m].id] = {
-          quantity: skusForSingleStyleId[m].quantity,
-          size: skusForSingleStyleId[m].size
-        };
-      }
-
-    }
-    totalResults.results = styles;
-    res.send(totalResults);
 
   } else {
     res.sendStatus(501);
@@ -175,7 +189,7 @@ app.get('/products/styles', async (req, res)=>{
 })
 
 app.get('/products/related', (req, res)=>{
-  //console.log('Get related products request made from parent productId: ', req.body.productId)
+  console.log('Get related products request made from parent productId: ', req.body.productId)
   db.any('SELECT related_product_id FROM RELATED WHERE current_product_id = ' + req.body.productId)
   .then(async (results)=>{
     let nums = []
@@ -194,3 +208,7 @@ app.get('/products/related', (req, res)=>{
 app.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`)
 })
+
+module.exports = {
+  app
+}
