@@ -5,7 +5,7 @@ const compression = require('compression');
 const conf = require('./postgresConfig.js');
 const bodyParser = require('body-parser');
 const pgp = require('pg-promise')();
-const db = pgp('postgres://' + conf.username + '@http://ec2-184-73-132-46.compute-1.amazonaws.com/:5432/' + conf.database);
+const db = pgp('postgres://' + conf.username + ':'+ conf.password + '@184.73.132.46:5432/' + conf.database);
 const credentials = require('./credentials.js');
 
 app.use(compression());
@@ -94,20 +94,45 @@ app.use(bodyParser.json());
 
   //   };
 
-let testConnection = () => {
-  console.log('testing database connection SELECT * from productstyles WHERE id = 1:');
-  db.any('SELECT * FROM productsstyles WHERE id = 1 ')
-    .then((results)=>{
-      console.log('results: ')
-      console.log(results);
-    })
-    .catch((err)=>{
-      console.log('Error occured: ');
-      console.log(err);
-    })
+// let testConnection = () => {
+//   let totalResults = {};
+//   totalResults.product_id = 2;
+//   console.log('testing database connection SELECT * from productstyles WHERE id = ' + 2);
+//   db.any('Select id, name, sale_price, original_price, default_style, photos, skus FROM productstyles WHERE productId = ' + 2)
+//     .then((results)=>{
+//       styles = results;
+//       //console.log(results);
+//       for (let i = 0; i < styles.length; i++) {
+//         let skuDetails = {};
+//         let defaultVal = styles[i].default_style;
+//         styles[i]['default?'] = defaultVal;
+//         // console.log('hello');
+//         // console.log('length of current sku', styles[i].skus.length);
+//         if(styles[i].skus) {
+//           for(let m = 0; m < styles[i].skus.length; m++) {
+//             skuDetails[styles[i].skus[m].id] = {
+//               quantity: styles[i].skus[m].quantity,
+//               size: styles[i].skus[m].size
+//             };
+//           }
+//           styles[i].skus = skuDetails;
 
-}
-testConnection();
+//         }
+//         if(!styles[i].photos) {
+//           styles[i].photos = {}
+//         }
+//       }
+//       totalResults.results = styles;
+//       // console.log(totalResults);
+//       // console.log(JSON.stringify(totalResults));
+//     })
+//     .catch((err)=>{
+//       console.log('Error occured: ');
+//       console.log(err);
+//     })
+
+// }
+// testConnection();
 
 app.get('/', (req, res) => {
   // console.log(req)
@@ -132,7 +157,7 @@ app.get('/products', (req, res)=>{
   } else if(req.headers.authorization === credentials.authorization && req.body !== undefined) {
     //console.log('Get product info request made on productId: ',req.body.productId)
     console.log('get product info on: ', req.body.productId)
-    db.any('SELECT id, name, slogan, description, category, default_price, features FROM products WHERE id = ' + req.body.productId)
+    db.any('SELECT id, name, slogan, description, category, default_price, features FROM products WHERE id = ' + Number(req.body.productId))
     .then((results)=>{
       // console.log(results);
       res.send(results[0]);
@@ -155,7 +180,7 @@ app.get('/products/styles', (req, res)=>{
   if(req.headers.authorization === credentials.authorization && req.body !== undefined) {
     let styles = [];
 
-     db.any('Select id, name, sale_price, original_price, default_style, photos, skus FROM productstyles WHERE productId = ' + req.body.productId)
+     db.any('Select id, name, sale_price, original_price, default_style, photos, skus FROM productstyles WHERE productId = ' + Number(req.body.productId))
     .then((results)=>{
 
       styles = results;
@@ -166,16 +191,22 @@ app.get('/products/styles', (req, res)=>{
         styles[i]['default?'] = defaultVal;
         // console.log('hello');
         // console.log('length of current sku', styles[i].skus.length);
-        for(let m = 0; m < styles[i].skus.length; m++) {
-          skuDetails[styles[i].skus[m].id] = {
-            quantity: styles[i].skus[m].quantity,
-            size: styles[i].skus[m].size
-          };
+        if(styles[i].skus) {
+          for(let m = 0; m < styles[i].skus.length; m++) {
+            skuDetails[styles[i].skus[m].id] = {
+              quantity: styles[i].skus[m].quantity,
+              size: styles[i].skus[m].size
+            };
+          }
+          styles[i].skus = skuDetails;
+
         }
-        styles[i].skus = skuDetails;
+        if(!styles[i].photos) {
+          styles[i].photos = {}
+        }
       }
       totalResults.results = styles;
-
+      // console.log(totalResults);
       res.send(JSON.stringify(totalResults));
       }
     ).catch((err)=>{
