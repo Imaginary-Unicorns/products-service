@@ -5,6 +5,7 @@ const compression = require('compression');
 const conf = require('./postgresConfig.js');
 const bodyParser = require('body-parser');
 const pgp = require('pg-promise')();
+//const db = pgp('postgres://' + conf.username + ':'+ conf.password + '@localhost:5432/' + conf.database);
 const db = pgp('postgres://' + conf.username + ':'+ conf.password + '@184.73.132.46:5432/' + conf.database);
 const credentials = require('./credentials.js');
 
@@ -139,9 +140,11 @@ app.get('/', (req, res) => {
   res.send('You are not using the API correctly')
 })
 
-app.get('/products', (req, res)=>{
+app.get('/products/:productId/', (req, res)=>{
+  console.log('products param: ', req.params.productId);
+  console.log('products query: ', req.query);
 
-  if(req.headers.authorization === credentials.authorization && req.body === undefined) {
+  if(req.headers.authorization === credentials.authorization && req.params.productId === undefined) {
     //console.log(req.body);
 
     db.any('SELECT id, name, slogan, description, category, default_price FROM products WHERE id < 6 ')
@@ -154,10 +157,10 @@ app.get('/products', (req, res)=>{
       res.sendStatus(501)
     })
 
-  } else if(req.headers.authorization === credentials.authorization && req.body !== undefined) {
+  } else if(req.headers.authorization === credentials.authorization && req.params.productId !== undefined) {
     //console.log('Get product info request made on productId: ',req.body.productId)
-    console.log('get product info on: ', req.body.productId)
-    db.any('SELECT id, name, slogan, description, category, default_price, features FROM products WHERE id = ' + Number(req.body.productId))
+    //console.log('get product info on: ', req.body.productId)
+    db.any('SELECT id, name, slogan, description, category, default_price, features FROM products WHERE id = ' + Number(req.params.productId))
     .then((results)=>{
       // console.log(results);
       res.send(results[0]);
@@ -173,14 +176,15 @@ app.get('/products', (req, res)=>{
 
 })
 
-app.get('/products/styles', (req, res)=>{
+app.get('/products/:productId/styles', (req, res)=>{
+
   let totalResults = {};
-  totalResults.product_id = Number(req.body.productId);
-  console.log('Get styles request made on productId: ',totalResults.product_id)
+  totalResults.product_id = Number(req.params.productId);
+  //console.log('Get styles request made on productId: ',totalResults.product_id)
   if(req.headers.authorization === credentials.authorization && req.body !== undefined) {
     let styles = [];
 
-     db.any('Select id, name, sale_price, original_price, default_style, photos, skus FROM productstyles WHERE productId = ' + Number(req.body.productId))
+     db.any('Select id, name, sale_price, original_price, default_style, photos, skus FROM productstyles WHERE productId = ' + Number(req.params.productId))
     .then((results)=>{
 
       styles = results;
@@ -219,9 +223,9 @@ app.get('/products/styles', (req, res)=>{
   }
 })
 
-app.get('/products/related', (req, res)=>{
-  console.log('Get related products request made from parent productId: ', req.body.productId)
-  db.any('SELECT related_product_id FROM RELATED WHERE current_product_id = ' + req.body.productId)
+app.get('/products/:productId/related', (req, res)=>{
+  //console.log('Get related products request made from parent productId: ', req.params.productId)
+  db.any('SELECT related_product_id FROM RELATED WHERE current_product_id = ' + req.params.productId)
   .then(async (results)=>{
     let nums = []
     for(let i = 0; i < results.length; i++) {
