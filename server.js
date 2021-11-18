@@ -23,10 +23,79 @@ app.get('/', (req, res) => {
   res.send('Incorrect')
 })
 
-function cache(req, res, next) {
+async function preCache() {
+  //looking to precache 40% of my last 10% in data set
+  //needs to be random 40%
+  console.log('pre caching, wait 1 min')
+  let productsCached = []
+  while(productsCached.length <= 40000) { // 100k entries in the final 10% in dataset so 40k entries cached
+    let randomProductId = Math.floor(Math.random() * 100000) + 900000;
+    if(productsCached.includes(randomProductId) === false) {
+      productsCached.push(randomProductId);
+      let keyStringProducts = 'products_' + randomProductId;
+      let keyStringStyles = 'styles_' + randomProductId;
+      let keyStringRelated = 'related_' + randomProductId;
+      let totalResults = {};
+      totalResults.product_id = Number(randomProductId);
+      db.any('SELECT id, name, slogan, description, category, default_price, features FROM products WHERE id = ' + randomProductId)
+      .then((results) =>{
+        client.setex(keyStringProducts, 3600, JSON.stringify(results[0]));
+      })
+      .catch((err)=>{
+        console.log(err);
+      })
+      db.any('Select id, name, sale_price, original_price, default_style, photos, skus FROM productstyles WHERE productId = ' + randomProductId)
+      .then((results) =>{
+        let styles = results;
+        //console.log(results);
+        for (let i = 0; i < styles.length; i++) {
+          let skuDetails = {};
+          let defaultVal = styles[i].default_style;
+          styles[i]['default?'] = defaultVal;
+          // console.log('hello');
+          // console.log('length of current sku', styles[i].skus.length);
+          if(styles[i].skus) {
+            for(let m = 0; m < styles[i].skus.length; m++) {
+              skuDetails[styles[i].skus[m].id] = {
+                quantity: styles[i].skus[m].quantity,
+                size: styles[i].skus[m].size
+              };
+            }
+            styles[i].skus = skuDetails;
 
+          }
+          if(!styles[i].photos) {
+            styles[i].photos = {}
+          }
+        }
+        totalResults.results = styles;
+        // console.log(totalResults);
+        let finalResults = JSON.stringify(totalResults);
+        client.setex(keyStringStyles, 3600, finalResults);
+      })
+      .catch((err)=>{
+        console.log(err);
+      })
+      db.any('SELECT related_product_id FROM RELATED WHERE current_product_id = ' + randomProductId)
+      .then((results) =>{
+        let nums = []
+        for(let i = 0; i < results.length; i++) {
+          nums.push(results[i].related_product_id);
+
+        }
+        let stringNum = JSON.stringify(nums);
+        client.setex(keyStringRelated, 3600, stringNum);
+      })
+      .catch((err)=>{
+        console.log(err);
+      })
+
+    }
+  }
 
 }
+
+preCache();
 
 app.get('/products/:productId/', (req, res)=>{
   let keyString = 'products_' + req.params.productId;
@@ -46,7 +115,7 @@ app.get('/products/:productId/', (req, res)=>{
           let keyString = 'productList'
 
           //cache results
-          client.setex(keyString, 3600, results);
+          //client.setex(keyString, 3600, results);
 
           res.send(results);
         })
@@ -64,16 +133,16 @@ app.get('/products/:productId/', (req, res)=>{
         res.send(500);
       }
       if(data !== null) {
-        console.log('typeof data returned from cache: ', typeof data);
-        console.log(data);
+        // console.log('typeof data returned from cache: ', typeof data);
+        // console.log(data);
         res.send(data);
       } else {
 
         db.any('SELECT id, name, slogan, description, category, default_price, features FROM products WHERE id = ' + Number(req.params.productId))
         .then((results)=>{
           // console.log(results);
-          console.log('typeof for results[0] in db query: ', typeof results[0])
-          client.setex(keyString, 3600, JSON.stringify(results[0]));
+          //console.log('typeof for results[0] in db query: ', typeof results[0])
+          //client.setex(keyString, 3600, JSON.stringify(results[0]));
 
           res.send(results[0]);
         })
@@ -104,8 +173,8 @@ app.get('/products/:productId/styles', (req, res)=>{
         res.send(500);
       }
       if(data !== null) {
-        console.log('typeof data returned from cache: ', typeof data);
-        console.log(data);
+        // console.log('typeof data returned from cache: ', typeof data);
+        // console.log(data);
         res.send(data);
       } else {
 
@@ -137,7 +206,7 @@ app.get('/products/:productId/styles', (req, res)=>{
          totalResults.results = styles;
          // console.log(totalResults);
          let finalResults = JSON.stringify(totalResults);
-         client.setex(keyString, 3600, finalResults);
+         //client.setex(keyString, 3600, finalResults);
          res.send(finalResults);
          }
        ).catch((err)=>{
@@ -161,8 +230,8 @@ app.get('/products/:productId/related', (req, res)=>{
       res.send(500);
     }
     if(data !== null) {
-      console.log('typeof data returned from cache: ', typeof data);
-      console.log(data);
+      // console.log('typeof data returned from cache: ', typeof data);
+      // console.log(data);
       res.send(data);
     } else {
 
@@ -175,7 +244,7 @@ app.get('/products/:productId/related', (req, res)=>{
 
         }
         let stringNum = JSON.stringify(nums);
-        client.setex(keyString, 3600, stringNum);
+        //client.setex(keyString, 3600, stringNum);
         res.send(stringNum);
       })
       .catch((err)=>{
